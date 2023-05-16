@@ -9,6 +9,7 @@
  *      7) Play again / exit / kick in case low balance
  */
 
+const { count } = require("console");
 const { totalmem } = require("os");
 const { parse } = require("path");
 const prompt = require("prompt-sync")();
@@ -75,7 +76,7 @@ const CalculateFinalBet = ( finalBet, lines ) => {
     console.log(
         "     Your bet is: " + finalBet + "$ per line (" + finalBet*lines + "$) in total"
     );
-    return;
+    return finalBet*lines;
 }
 
 const PlaceBet = (balance, lines) => {
@@ -147,13 +148,18 @@ const DisplayMachine = (toTest) => {
         console.log(toTest[i]);
     }
 }
-const CheckSpin = (slots, lines) => {
+const GetWin = (slots, lines, balance, bet) => {
+    if (bet > balance){
+        console.log("YOU WERE KICKED OUTA CASINO U GAMBLIN SHI");
+        return -1;
+    }
+
     let multiply = 1;
     let multipyValue;
     let sameInRow = true;
     const toTest = [];
 
-    for (let i=0; i<lines; i++){                    //rows - - - 
+    for (let i=0; i<COLS; i++){                    //rows - - - 
         toTest.push([]);
         for (let j=0; j<slots.length; j++){         //cols | | |
             toTest[i].push(slots[j][i]);
@@ -162,49 +168,61 @@ const CheckSpin = (slots, lines) => {
     DisplayMachine(toTest);
 
     for (let j=0; j<lines; j++){
+        multipyValue = toTest[j][0];
+
         for (let i=1; i<ROWS; i++){
-            console.log("porovnavam: " + toTest[j][0] + " a " + toTest[j][i])
             if ( toTest[j][0]!==toTest[j][i] ){
                 sameInRow = false;
+                break;
             }
-            console.log("A vyslo " + sameInRow);
         }
-        console.log(j + " row is " + sameInRow);
+        
+        if (sameInRow){
+            multiply *= SYMBOLS_VALUE[multipyValue];
+            console.log(
+                "-----------------WIN: " + (j+1) + ". line --> + "
+                + SYMBOLS_VALUE[multipyValue] + "x (" + multiply*100 + "% overall)"
+            );
+        }
         sameInRow = true;
-
-        // if (sameInRow){
-        //     multipyValue = toTest[j][0];
-        //     multiply *= multipyValue;
-        //     console.log("You won in " + j + " line: " + multipyValue + " --- current multiplicity this spin " + multiply);
-
-        //     sameInRow = true;
-        // }
-
     }
+    if (multiply===1){
+        console.log("-----------------You lost your bet");
+        multiply *= -1;
+        balance += multiply*bet;
+        console.log("----------------- " + multiply*bet + "$");
+    }
+    else{
+        balance += multiply*bet;
+        console.log("----------------- +" + multiply*bet + "$");
+    }
+    console.log("\n-----------------Your balance is " + balance);
+
+    return balance;
 }
 
-const SpinningSlots = (lines) => {
+const SpinningSlots = (lines, balance, bet) => {
     let stop = false;
+    let spinNo=0;
+    let newbala = balance;
 
-    while ( true ){
-        const slots = spin();
-        let winning = CheckSpin(slots, lines);
-        
-        const stopNow = prompt("     STOP?  1/0: ");
+    while ( newbala !== -1 ){
+        spinNo++;
+        console.log("-----------------" + spinNo + "th spin")
+        newbala = GetWin(spin(), lines, newbala, bet);
+
+        const stopNow = prompt("-----------------STOP?  1/0: \n\n");
         const numStop = parseFloat(stopNow);
 
         if ( numStop === 1){
             break
         }
     }
+    console.log("\n\nYou have lost everything");
 }
 
 let balance = Deposit();
 const lines = GetNumberOfLines();
 let bet = PlaceBet(balance, lines);
 
-SpinningSlots(lines);
-
-// const slots = spin();
-// console.log(slots)
-// let winning = CheckSpin(slots, lines);
+SpinningSlots(lines, balance, bet);
